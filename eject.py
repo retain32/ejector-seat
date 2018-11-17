@@ -24,16 +24,16 @@ def main():
         # print("%s: %s" % (m.group(1), m.group(2)))
         diskutil_list.append(m.group(1))
 
-    disks = {}
+
+    disks = []
     # print(df_output)
     for line in df_output.split('\n'):
         if line.startswith("/dev/"):
-            pattern = re.compile("\/dev\/disk[0-999]")
-            dev_path = re.search(pattern, line.split()[0]).group(0)
-            volume_path = line.split()[8]
+            dev_path = re.search("\/dev\/disk[0-999]", line.split()[0]).group(0)
+            volume_path = re.search("/Volumes/.*$", line)
             if dev_path.startswith(tuple(diskutil_list)):
-
-                disks[dev_path] = volume_path.split("/")[2]
+                # print(volume_path.group(0))
+                disks.append(disk_item(dev_path, volume_path.group(0)))
     # print(disks)
 
     app = QApplication([])
@@ -49,16 +49,10 @@ def main():
 
     # Create the menu
 
-    # drive.insert(i, QAction(m.group(1)))
-    # menu.addAction(drive[i])
-
     menu = QMenu()
-    items = {}
     for disk in disks:
-        items[disk] = (QAction(disks[disk]))
-        items[disk].triggered.connect(lambda: eject_drive(disk))
-        menu.addAction(items[disk])
-        #TODO:Fix the triggered.connect call, it calls the last value of disk, not the one it was called from
+        disk.triggered.connect(disk.eject)
+        menu.addAction(disk)
 
     # Add the menu to the tray
     tray.setContextMenu(menu)
@@ -66,8 +60,20 @@ def main():
     app.exec_()
 
 
+class disk_item(QAction):
+
+    def __init__(self, dev_path, volume_path):
+        self.dev_path = dev_path # /dev/disk0
+        self.volume_path = volume_path # /Volumes/Example Disk
+        self.name = self.volume_path.replace("/Volumes/", "") # Example Disk
+        super(disk_item, self).__init__(self.name)
+
+    def eject(self):
+        call(["diskutil", "eject", self.dev_path])
+
+
 def eject_drive(dev_path):
-    call(["diskutil", "eject", dev_path])
+    #call(["diskutil", "eject", dev_path])
     print(dev_path + " ejected.")
 
 
